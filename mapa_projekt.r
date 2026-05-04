@@ -3,8 +3,6 @@
 #  Uruchomienie: shiny::runApp("mapa_interaktywna.R")
 # ============================================================
 
-setwd("C:/Users/damia/Desktop/studia/magisterka/sem2/ekonometria przestrzenna/projekt")
-
 library(shiny)
 library(sf)
 library(ggplot2)

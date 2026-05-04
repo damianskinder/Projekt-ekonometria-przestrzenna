@@ -2,8 +2,6 @@
 #  Wizualizacje danych panelowych - województwa 2004-2024
 # ============================================================
 
-setwd("C:/Users/damia/Desktop/studia/magisterka/sem2/ekonometria przestrzenna/projekt")
-
 # Wczytanie danych
 dane <- read.csv("panel_wojewodztwa_2004_2024.csv", header = TRUE, sep = ",", dec = ".", encoding = "UTF-8")
 

@@ -3,8 +3,6 @@
 #  Test Morana I dla wszystkich zmiennych
 # ============================================================
 
-setwd("C:/Users/damia/Desktop/studia/magisterka/sem2/ekonometria przestrzenna/projekt")
-
 library(sf)
 library(spdep)
 library(ggplot2)
