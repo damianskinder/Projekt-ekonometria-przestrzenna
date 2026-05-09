@@ -10,7 +10,7 @@ library(dplyr)
 library(readxl)
 library(plm)
 
-SCIEZKA_DANE <- "C:/Users/Patryk/Desktop/dane projekty/nowe dane/nowe_dane.xlsx"
+SCIEZKA_DANE <- "nowe_dane.xlsx"
 
 # ── Wczytanie danych ─────────────────────────────────────────
 mapa <- st_read("wojewodztwa.shp")

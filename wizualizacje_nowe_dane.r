@@ -10,7 +10,7 @@ library(gifski)
 library(readxl)
 library(dplyr)
 
-SCIEZKA_DANE <- "C:/Users/Patryk/Desktop/dane projekty/nowe dane/nowe_dane.xlsx"
+SCIEZKA_DANE <- "nowe_dane.xlsx"
 
 dane <- read_excel(SCIEZKA_DANE, sheet = "Ludnosc_25_34")
 

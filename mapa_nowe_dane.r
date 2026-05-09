@@ -9,7 +9,7 @@ library(ggplot2)
 library(dplyr)
 library(readxl)
 
-SCIEZKA_DANE <- "C:/Users/Patryk/Desktop/dane projekty/nowe dane/nowe_dane.xlsx"
+SCIEZKA_DANE <- "nowe_dane.xlsx"
 
 # ── Wczytanie danych (raz przy starcie aplikacji) ─────────────
 dane <- read_excel(SCIEZKA_DANE, sheet = "Ludnosc_25_34")
