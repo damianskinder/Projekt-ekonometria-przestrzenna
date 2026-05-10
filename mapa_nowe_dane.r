@@ -13,6 +13,7 @@ SCIEZKA_DANE <- "nowe_dane.xlsx"
 
 # ── Wczytanie danych (raz przy starcie aplikacji) ─────────────
 dane <- read_excel(SCIEZKA_DANE, sheet = "Ludnosc_25_34")
+names(dane)[names(dane) == "WSK25-34"] <- "WSK25_34"
 dane$teryt <- sprintf("%02d", as.numeric(dane$teryt))
 
 mapa <- st_read("wojewodztwa.shp")
@@ -21,7 +22,7 @@ mapa$JPT_KOD_JE <- sprintf("%02d", as.numeric(mapa$JPT_KOD_JE))
 # ── Konfiguracja zmiennych ────────────────────────────────────
 zmienne_config <- list(
   "Mieszkania oddane do użytkowania"            = list(col = "MO",       low = "lightyellow", high = "#08306b"),
-  "Ludność w wieku 25-34 lat"                   = list(col = "WSK25-34", low = "#fff7ec",     high = "#7f0000"),
+  "Ludność w wieku 25-34 lat"                   = list(col = "WSK25_34", low = "#fff7ec",     high = "#7f0000"),
   "Wskaźnik urbanizacji [%]"                    = list(col = "WSK_URB",  low = "#f7fcf5",     high = "#00441b"),
   "Nakłady inwestycyjne w sektorze prywatnym"   = list(col = "NAKŁ",     low = "#f7fbff",     high = "#08306b"),
   "Średnie wynagrodzenie [zł]"                  = list(col = "WYNAGR",   low = "#fff5eb",     high = "#7f2704"),
