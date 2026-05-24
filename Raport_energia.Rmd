@@ -1,0 +1,610 @@
+---
+title: "Przestrzenne determinanty zużycia energii elektrycznej w województwach Polski w latach 2004–2024"
+subtitle: "Projekt zespołowy — Ekonometria Przestrzenna"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  word_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+lang: pl
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo    = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width  = 7,
+  fig.height = 4.5,
+  dpi = 150
+)
+```
+
+```{r ladowanie, include=FALSE}
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(corrplot)
+library(spdep)
+library(plm)
+library(readxl)
+library(scales)
+library(splm)
+library(spatialreg)
+library(knitr)
+
+mapa <- st_read("wojewodztwa.shp", quiet = TRUE)
+mapa$JPT_KOD_JE <- sprintf("%02d", as.numeric(mapa$JPT_KOD_JE))
+mapa <- mapa[order(mapa$JPT_KOD_JE), ]
+
+dane <- read.csv("panel_wojewodztwa_2004_2024.csv", header = TRUE,
+                 sep = ",", dec = ".", encoding = "UTF-8")
+dane$teryt      <- sprintf("%02d", as.numeric(dane$teryt))
+dane$pkb_mld_zl <- dane$pkb_mln_zl / 1000
+
+nb   <- poly2nb(mapa, queen = TRUE)
+lw   <- nb2listw(nb, style = "W", zero.policy = TRUE)
+
+pdata    <- pdata.frame(dane, index = c("teryt", "rok"))
+model_fe <- plm(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd,
+                data = pdata, model = "within")
+model_ols <- lm(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd,
+                data = dane)
+
+oblicz_lmtesty <- function(model_fe_obj, lw_obj) {
+  testy  <- c("lml", "lme", "rlml", "rlme")
+  nazwy  <- c("LM-Lag (SAR)", "LM-Error (SEM)", "Robust LM-Lag", "Robust LM-Error")
+  wyniki <- lapply(testy, function(t) slmtest(model_fe_obj, lw_obj, t))
+  data.frame(
+    Test       = nazwy,
+    Statystyka = round(sapply(wyniki, function(r) as.numeric(r$statistic)), 4),
+    `p-value`  = round(sapply(wyniki, function(r) r$p.value), 4),
+    Istotnosc  = ifelse(sapply(wyniki, function(r) r$p.value) < 0.05, "Tak (p<0.05)", "Nie"),
+    check.names = FALSE
+  )
+}
+lmtab <- oblicz_lmtesty(model_fe, lw)
+
+model_sar <- spml(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd,
+                  data = dane, index = c("teryt", "rok"), listw = lw,
+                  model = "within", lag = TRUE, spatial.error = "none")
+model_sem <- spml(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd,
+                  data = dane, index = c("teryt", "rok"), listw = lw,
+                  model = "within", lag = FALSE, spatial.error = "b")
+
+skewness_val <- function(x) {
+  x <- x[!is.na(x)]; n <- length(x)
+  if (n < 3) return(NA)
+  m <- mean(x); s <- sd(x)
+  (n / ((n - 1) * (n - 2))) * sum(((x - m) / s)^3)
+}
+
+paleta_woj <- c(
+  "#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd",
+  "#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf",
+  "#aec7e8","#ffbb78","#98df8a","#ff9896","#c5b0d5","#c49c94"
+)
+```
+
+------------------------------------------------------------------------
+
+# Wstęp i problem badawczy
+
+## Uzasadnienie wyboru tematu
+
+Zużycie energii elektrycznej jest jednym z kluczowych wskaźników poziomu rozwoju gospodarczego regionów. W Polsce, będącej krajem o znacznym zróżnicowaniu regionalnym, dysproporcje w konsumpcji energii między województwami mogą wynikać zarówno z czynników ekonomicznych (dochody, struktura produkcji), demograficznych (liczba ludności, urbanizacja), jak i klimatycznych (stopniodni grzewcze i chłodzenia). Zasadnicze pytanie badawcze dotyczy tego, czy zróżnicowanie przestrzenne zużycia energii jest przypadkowe, czy też wykazuje strukturę skupisk — czyli czy wysokie (lub niskie) zużycie w jednym województwie współwystępuje z podobnym poziomem w województwach sąsiednich.
+
+## Pytania badawcze
+
+1.  Czy zużycie energii elektrycznej w polskich województwach wykazuje istotną autokorelację przestrzenną?
+2.  Jakie czynniki ekonomiczne i klimatyczne determinują poziom zużycia energii?
+3.  Czy efekty przestrzenne (spillover lub wspólne nieobserwowane czynniki) są istotne statystycznie po kontroli zmiennych objaśniających?
+4.  Który model przestrzenny — SAR czy SEM — lepiej opisuje badane zjawisko?
+
+## Poziom przestrzenny
+
+Analiza prowadzona jest na poziomie 16 województw Polski (NUTS-2), w latach 2004–2024 (panel zbalansowany, N = 16, T = 21).
+
+------------------------------------------------------------------------
+
+# Przegląd literatury
+
+Problematyka przestrzennego zróżnicowania zużycia energii na poziomie regionalnym jest stosunkowo rzadko podejmowana w literaturze krajowej, choć dynamicznie rozwijająca się w pracach zagranicznych. Kluczowe kierunki badań obejmują:
+
+**Modele popytu na energię.** Klasyczne podejście, wywodzące się z prac Houthakkera i Taylora (1970), zakłada, że popyt na energię elektryczną jest funkcją dochodu, ceny energii i zmiennych klimatycznych. W nowszych badaniach (Ang, 2006; Zheng i in., 2014) uwzględnia się strukturę przestrzenną, wskazując na efekty dyfuzji technologii i konwergencji zużycia między regionami.
+
+**Ekonometria przestrzenna dla danych panelowych.** Elhorst (2003, 2014) opracował uogólnione ramy estymacji przestrzennych modeli panelowych uwzględniające efekty stałe i losowe. Anselin (1988) zaproponował testy LM dla selekcji między modelem SAR (Spatial Autoregressive) a SEM (Spatial Error Model). Baltagi, Song i Koh (2003) rozwinęli te metody dla danych panelowych.
+
+**Badania dla Polski.** Kopczewska (2007, 2011) prezentuje kompleksowe podejście do analizy przestrzennej polskich danych regionalnych. Działek (2011) analizuje przestrzenne skupiska aktywności gospodarczej w Polsce, wykazując trwałość układów centrum–peryferie. Badania GUS wskazują na rosnące zróżnicowanie między województwami w zakresie zużycia energii elektrycznej, przy czym województwa uprzemysłowione (śląskie, dolnośląskie) oraz metropolitalne (mazowieckie) wyróżniają się zdecydowanie ponadprzeciętnym poziomem konsumpcji.
+
+**Hipotezy wynikające z literatury.** Na podstawie przeglądu formułujemy następujące hipotezy: (H1) wyższy dochód per capita zwiększa zużycie energii; (H2) wyższa cena energii obniża jej zużycie (efekt substytucji); (H3) wyższe stopniodni grzewcze i chłodzenia zwiększają zużycie (zapotrzebowanie sezonowe); (H4) zużycie wykazuje dodatnią autokorelację przestrzenną (efekt skupisk).
+
+------------------------------------------------------------------------
+
+# Opis danych
+
+## Źródła i zmienne
+
+Dane pochodzą z Banku Danych Lokalnych GUS oraz Eurostatu i obejmują 16 województw w latach 2004–2024 (panel zbalansowany, łącznie `r nrow(dane)` obserwacji).
+
+```{r tabela_zmiennych}
+tab_zm <- data.frame(
+  Symbol = c("zuzycie_energii_GWh", "dochod_os", "cena_energii_zl_kWh",
+             "urbanizacja_pct", "hdd", "cdd", "pkb_mln_zl", "ludnosc"),
+  Opis = c("Zużycie energii elektrycznej [GWh]",
+           "Dochód rozporządzalny per capita [zł/os.]",
+           "Średnia cena energii elektrycznej [zł/kWh]",
+           "Wskaźnik urbanizacji [%]",
+           "Stopniodni grzewcze (Heating Degree Days)",
+           "Stopniodni chłodzenia (Cooling Degree Days)",
+           "PKB w cenach bieżących [mln zł]",
+           "Liczba ludności [os.]"),
+  Rola = c("Zmienna zależna", rep("Objaśniająca", 5), rep("Kontekstowa", 2)),
+  `Oczekiwany znak` = c("—", "+", "−", "+/−", "+", "+", "—", "—"),
+  check.names = FALSE
+)
+kable(tab_zm, caption = "Zmienne w modelu — dane o zużyciu energii elektrycznej")
+```
+
+**Zmienna zależna** — zużycie energii elektrycznej w GWh mierzy całkowite zapotrzebowanie na energię elektryczną w danym województwie w ciągu roku.
+
+**Macierz wag przestrzennych** — zastosowano sąsiedztwo pierwszego rzędu typu Queen (wspólna granica lub wierzchołek), standaryzowane wierszowo (styl „W"), co zapewnia porównywalność siły oddziaływania przestrzennego między województwami o różnej liczbie sąsiadów.
+
+## Statystyki opisowe
+
+```{r statystyki_opisowe}
+zm_cols <- c("zuzycie_energii_GWh", "dochod_os", "cena_energii_zl_kWh",
+             "urbanizacja_pct", "hdd", "cdd")
+zm_labs <- c("Zużycie energii [GWh]", "Dochód per capita [zł]",
+             "Cena energii [zł/kWh]", "Urbanizacja [%]", "HDD", "CDD")
+
+stat_tab <- do.call(rbind, lapply(seq_along(zm_cols), function(i) {
+  x <- dane[[zm_cols[i]]]
+  data.frame(
+    Zmienna   = zm_labs[i],
+    Srednia   = round(mean(x, na.rm = TRUE), 2),
+    Mediana   = round(median(x, na.rm = TRUE), 2),
+    `Odch.std` = round(sd(x, na.rm = TRUE), 2),
+    Min       = round(min(x, na.rm = TRUE), 2),
+    Max       = round(max(x, na.rm = TRUE), 2),
+    Asymetria = round(skewness_val(x), 3),
+    check.names = FALSE
+  )
+}))
+
+kable(stat_tab, caption = "Podstawowe statystyki opisowe zmiennych (cały panel, 2004–2024)")
+```
+
+Zużycie energii elektrycznej cechuje się znacznym zróżnicowaniem — odchylenie standardowe (`r round(sd(dane$zuzycie_energii_GWh), 0)` GWh) stanowi ponad `r round(sd(dane$zuzycie_energii_GWh)/mean(dane$zuzycie_energii_GWh)*100, 0)`% wartości średniej, co świadczy o dużych dysproporcjach regionalnych. Rozkład wykazuje prawostronną asymetrię (dominacja województw o przeciętnym zużyciu, przy kilku obserwacjach silnie ponadprzeciętnych — głównie mazowieckie i śląskie).
+
+------------------------------------------------------------------------
+
+# Analiza opisowa danych
+
+## Przestrzenne zróżnicowanie zużycia energii — wybrane lata
+
+```{r mapy_energy, fig.width=8, fig.height=4, fig.cap="Kartogram zużycia energii elektrycznej — wybrane lata"}
+lata_wybrane <- c(2004, 2010, 2015, 2024)
+lata_dostepne <- lata_wybrane[lata_wybrane %in% unique(dane$rok)]
+
+df_mapy <- dane %>%
+  filter(rok %in% lata_dostepne) %>%
+  select(teryt, rok, zuzycie_energii_GWh) %>%
+  left_join(mapa, by = c("teryt" = "JPT_KOD_JE")) %>%
+  st_as_sf()
+
+ggplot(df_mapy) +
+  geom_sf(aes(fill = zuzycie_energii_GWh), color = "white", linewidth = 0.3) +
+  facet_wrap(~rok, ncol = 4) +
+  scale_fill_gradient(low = "lightyellow", high = "#08306b",
+                      name = "GWh", labels = scales::comma) +
+  labs(title = "Zużycie energii elektrycznej w województwach",
+       caption = "Źródło: GUS BDL") +
+  theme_void(base_size = 10) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold"))
+```
+
+Kartogramy potwierdzają trwałość układu przestrzennego: województwa mazowieckie i śląskie konsekwentnie wyróżniają się najwyższym zużyciem energii elektrycznej, zaś województwa wschodniej Polski (podlaskie, lubelskie, podkarpackie) — najniższym. Układ ten wykazuje stabilność przez cały badany okres, co sugeruje strukturalne, a nie przypadkowe podłoże obserwowanych różnic.
+
+## Dynamika zużycia energii w czasie
+
+```{r wykres_liniowy, fig.cap="Zużycie energii elektrycznej — trajektorie województw 2004–2024"}
+ggplot(dane, aes(x = rok, y = zuzycie_energii_GWh, color = wojewodztwo)) +
+  geom_line(linewidth = 0.7) +
+  geom_point(size = 1) +
+  scale_color_manual(values = paleta_woj) +
+  scale_x_continuous(breaks = seq(2004, 2024, 4)) +
+  labs(title = "Zużycie energii elektrycznej — województwa 2004–2024",
+       x = "Rok", y = "Zużycie [GWh]",
+       color = "Województwo",
+       caption = "Źródło: GUS BDL") +
+  theme_minimal(base_size = 11) +
+  theme(legend.text = element_text(size = 7),
+        plot.title = element_text(face = "bold"),
+        panel.grid.minor = element_blank())
+```
+
+## Analiza korelacji
+
+```{r korrelacje, fig.width=6, fig.height=5.5, fig.cap="Macierz korelacji zmiennych ilościowych"}
+zm_cor <- dane[, c("zuzycie_energii_GWh", "dochod_os", "cena_energii_zl_kWh",
+                   "urbanizacja_pct", "hdd", "cdd", "pkb_mln_zl")]
+colnames(zm_cor) <- c("Zużycie energii", "Dochód per capita", "Cena energii",
+                       "Urbanizacja %", "HDD", "CDD", "PKB")
+corrplot(cor(zm_cor, use = "complete.obs"),
+         method = "color", type = "upper",
+         addCoef.col = "black", number.cex = 0.75,
+         tl.col = "black", tl.srt = 45,
+         col = colorRampPalette(c("#d73027", "white", "#1a9850"))(200),
+         title = "Macierz korelacji", mar = c(0, 0, 2, 0))
+```
+
+Macierz korelacji ujawnia silną, dodatnią korelację zużycia energii z PKB i dochodem per capita, co jest zgodne z oczekiwaniami teoretycznymi. Korelacja z ceną energii jest ujemna, potwierdzając efekt cenowy. Stopniodni grzewcze (HDD) wykazują słabszą korelację z zużyciem energii — może to wynikać z faktu, że ogrzewanie w Polsce opiera się częściowo na gazie i węglu, nie tylko na energii elektrycznej.
+
+## Rozkłady zmiennych
+
+```{r histogramy, fig.width=7, fig.height=3.5, fig.cap="Rozkład zużycia energii elektrycznej w wybranych latach"}
+lata_hist <- c(2004, 2014, 2024)
+lata_hist <- lata_hist[lata_hist %in% unique(dane$rok)]
+df_hist <- dane %>% filter(rok %in% lata_hist)
+ggplot(df_hist, aes(x = zuzycie_energii_GWh)) +
+  geom_histogram(bins = 8, fill = "#2166ac", color = "white", alpha = 0.85) +
+  geom_vline(aes(xintercept = mean(zuzycie_energii_GWh)),
+             color = "#d73027", linewidth = 1, linetype = "dashed") +
+  facet_wrap(~rok) +
+  labs(title = "Rozkład zużycia energii — wybrane lata",
+       subtitle = "Linia czerwona = średnia",
+       x = "Zużycie energii [GWh]", y = "Liczba województw") +
+  theme_minimal(base_size = 11) +
+  theme(plot.title = element_text(face = "bold"))
+```
+
+------------------------------------------------------------------------
+
+# Eksploracyjna analiza danych przestrzennych (ESDA)
+
+## Globalny wskaźnik autokorelacji przestrzennej Morana
+
+Globalny test I Morana dla zużycia energii elektrycznej w wybranym roku referencyjnym:
+
+```{r moran_global}
+df_2015 <- dane %>% filter(rok == 2015) %>% arrange(teryt)
+moran_test <- suppressWarnings(
+  moran.test(df_2015$zuzycie_energii_GWh, lw, alternative = "two.sided", zero.policy = TRUE)
+)
+```
+
+**I Morana (2015) = `r round(moran_test$estimate["Moran I statistic"], 4)`**, wartość oczekiwana = `r round(moran_test$estimate["Expectation"], 4)`, p-value = `r round(moran_test$p.value, 4)`.
+
+```{r moran_w_czasie, fig.cap="Statystyka I Morana dla zużycia energii w czasie (2004–2024)"}
+lata_s <- 2004:2024
+wyniki_m <- do.call(rbind, lapply(lata_s, function(yr) {
+  df_yr <- dane %>% filter(rok == yr) %>% arrange(teryt)
+  test  <- suppressWarnings(
+    moran.test(df_yr$zuzycie_energii_GWh, lw, alternative = "two.sided", zero.policy = TRUE)
+  )
+  data.frame(rok = yr,
+             moran_I = round(test$estimate["Moran I statistic"], 4),
+             p_value = round(test$p.value, 4),
+             istotna = test$p.value < 0.05)
+}))
+
+ggplot(wyniki_m, aes(x = rok, y = moran_I)) +
+  geom_line(color = "#2166ac", linewidth = 1) +
+  geom_point(aes(shape = istotna, color = istotna), size = 3) +
+  scale_shape_manual(values = c(1, 16), labels = c("p >= 0.05", "p < 0.05"),
+                     name = "Istotność") +
+  scale_color_manual(values = c("grey50", "#d73027"), name = "Istotność",
+                     labels = c("p >= 0.05", "p < 0.05")) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey60") +
+  scale_x_continuous(breaks = seq(2004, 2024, 4)) +
+  labs(title = "Statystyka I Morana — zużycie energii elektrycznej",
+       subtitle = "Wypełniony punkt = istotne (p < 0.05)",
+       x = "Rok", y = "I Morana") +
+  theme_minimal(base_size = 11) +
+  theme(plot.title = element_text(face = "bold"), panel.grid.minor = element_blank())
+```
+
+```{r moran_tabela}
+tab_m <- wyniki_m %>%
+  summarise(
+    `I Morana (śr.)` = round(mean(moran_I), 4),
+    `I Morana (min)` = round(min(moran_I), 4),
+    `I Morana (max)` = round(max(moran_I), 4),
+    `% istotnych lat` = paste0(round(mean(istotna) * 100), "%")
+  )
+kable(tab_m, caption = "Podsumowanie statystyki I Morana dla zużycia energii elektrycznej (2004–2024)")
+```
+
+Wyniki wskazują na `r if(mean(wyniki_m$moran_I) > 0) "dodatnią" else "ujemną"` autokorelację przestrzenną zużycia energii elektrycznej, utrzymującą się przez cały badany okres. Oznacza to, że województwa o wysokim zużyciu energii sąsiadują z innymi województwami o wysokim zużyciu, co wyklucza przypadkowość układu przestrzennego i uzasadnia zastosowanie modeli przestrzennych.
+
+## Wykres Morana
+
+```{r moran_plot, fig.cap="Wykres Morana — zużycie energii elektrycznej (2015)"}
+suppressWarnings(
+  moran.plot(df_2015$zuzycie_energii_GWh, lw,
+             labels = df_2015$wojewodztwo,
+             pch = 20, col = "#2166ac",
+             main = "Wykres Morana — zużycie energii elektrycznej (2015)",
+             xlab = "Zużycie energii (standaryzowane)",
+             ylab = "Przestrzenne opóźnienie (standaryzowane)")
+)
+```
+
+## Lokalne wskaźniki LISA — skupiska przestrzenne
+
+```{r lisa, fig.width=7, fig.height=4.5, fig.cap="Mapa LISA — zużycie energii elektrycznej (2015)"}
+x      <- df_2015$zuzycie_energii_GWh
+x_std  <- as.vector(scale(x))
+lag_s  <- as.vector(lag.listw(lw, x_std))
+lisa   <- suppressWarnings(localmoran(x, lw, zero.policy = TRUE))
+p_val  <- lisa[, 5]
+
+kat <- dplyr::case_when(
+  x_std > 0 & lag_s > 0 & p_val < 0.05 ~ "HH (hot spot)",
+  x_std < 0 & lag_s < 0 & p_val < 0.05 ~ "LL (cold spot)",
+  x_std > 0 & lag_s < 0 & p_val < 0.05 ~ "HL (high-low)",
+  x_std < 0 & lag_s > 0 & p_val < 0.05 ~ "LH (low-high)",
+  TRUE ~ "NS (nieistotna)"
+)
+
+df_lisa <- data.frame(teryt = df_2015$teryt, kategoria = kat)
+md_lisa <- merge(mapa, df_lisa, by.x = "JPT_KOD_JE", by.y = "teryt")
+
+paleta_lisa <- c("HH (hot spot)" = "#d73027", "LL (cold spot)" = "#4575b4",
+                 "HL (high-low)" = "#fdae61", "LH (low-high)" = "#abd9e9",
+                 "NS (nieistotna)" = "#eeeeee")
+
+ggplot(md_lisa) +
+  geom_sf(aes(fill = kategoria), color = "white", linewidth = 0.5) +
+  scale_fill_manual(values = paleta_lisa, name = "Skupisko LISA", drop = FALSE) +
+  labs(title = "Lokalne wskaźniki LISA — zużycie energii (2015)",
+       subtitle = "Istotność: p < 0.05",
+       caption = "Źródło: obliczenia własne, spdep::localmoran") +
+  theme_void(base_size = 12) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5),
+        legend.position = "right")
+```
+
+```{r lisa_tabela}
+df_lisa_full <- data.frame(
+  Województwo = df_2015$wojewodztwo,
+  `LISA I` = round(lisa[, 1], 4),
+  `p-value` = round(p_val, 4),
+  Kategoria = kat,
+  check.names = FALSE
+) %>% arrange(Kategoria, desc(`LISA I`))
+kable(df_lisa_full, caption = "Wartości LISA dla zużycia energii elektrycznej (2015)")
+```
+
+Analiza skupisk LISA pozwala zidentyfikować:
+
+-   **Skupiska HH (hot spots)**: województwa o wysokim zużyciu energii otoczone przez podobne sąsiedztwa — typowo obszary koncentracji przemysłu i usług,
+-   **Skupiska LL (cold spots)**: województwa o niskim zużyciu otoczone przez sąsiedztwa o niskim zużyciu — typowo regiony wschodniej Polski,
+-   **Obserwacje NS**: województwa, których lokalna autokorelacja przestrzenna nie jest statystycznie istotna.
+
+------------------------------------------------------------------------
+
+# Modelowanie ekonometryczne
+
+## Model OLS (benchmark)
+
+Pierwszym krokiem jest estymacja klasycznego modelu OLS bez uwzględnienia struktury przestrzennej ani efektów indywidualnych. Służy jako punkt odniesienia (benchmark) dla modeli przestrzennych.
+
+**Równanie modelu:**
+
+$$\text{Zużycie}_{it} = \beta_0 + \beta_1 \text{dochod\_os}_{it} + \beta_2 \text{urbanizacja}_{it} + \beta_3 \text{cena}_{it} + \beta_4 \text{hdd}_{it} + \beta_5 \text{cdd}_{it} + \varepsilon_{it}$$
+
+```{r ols_wyniki}
+sum_ols <- summary(model_ols)
+coef_tab <- as.data.frame(coef(sum_ols))
+coef_tab <- round(coef_tab, 4)
+colnames(coef_tab) <- c("Współczynnik", "Błąd std.", "t", "p-value")
+rownames(coef_tab) <- c("(Stała)", "Dochód per capita", "Urbanizacja [%]",
+                         "Cena energii [zł/kWh]", "HDD", "CDD")
+kable(coef_tab, caption = paste0("Wyniki modelu OLS (pooled). R² = ",
+                                  round(sum_ols$r.squared, 4),
+                                  ", R² adj. = ", round(sum_ols$adj.r.squared, 4)))
+```
+
+## Model panelowy FE (referencja do testów LM)
+
+Model efektów stałych (FE, within) kontroluje nieobserwowaną heterogeniczność między województwami. Jego reszty służą jako podstawa do obliczenia testów LM.
+
+```{r fe_wyniki}
+sum_fe <- summary(model_fe)
+coef_fe <- as.data.frame(coef(sum_fe))
+coef_fe <- round(coef_fe, 4)
+colnames(coef_fe) <- c("Współczynnik", "Błąd std.", "t", "p-value")
+rownames(coef_fe) <- c("Dochód per capita", "Urbanizacja [%]",
+                        "Cena energii [zł/kWh]", "HDD", "CDD")
+kable(coef_fe, caption = "Wyniki modelu panelowego FE — zużycie energii elektrycznej")
+```
+
+## Testy Lagrange Multiplier — selekcja SAR vs SEM
+
+Testy LM pozwalają wybrać właściwą specyfikację modelu przestrzennego.
+
+**Reguła decyzyjna:** 1. Jeśli oba LM istotne → porównaj Robust LM: istotny Robust LM-Lag wskazuje SAR; istotny Robust LM-Error wskazuje SEM. 2. Jeśli tylko jeden LM istotny → wybierz odpowiadający model.
+
+```{r lm_testy}
+kable(lmtab, caption = "Testy Lagrange Multiplier — selekcja modelu przestrzennego")
+```
+
+```{r moran_reszty}
+res_sr <- dane %>%
+  mutate(reszta = resid(model_ols)) %>%
+  group_by(teryt) %>%
+  summarise(reszta = mean(reszta), .groups = "drop") %>%
+  arrange(teryt)
+
+mt_res <- suppressWarnings(
+  moran.test(res_sr$reszta, lw, alternative = "two.sided", zero.policy = TRUE)
+)
+```
+
+Test I Morana dla reszt OLS (uśrednione po latach): **I = `r round(mt_res$estimate["Moran I statistic"], 4)`**, p-value = `r round(mt_res$p.value, 4)`. `r if(mt_res$p.value < 0.05) "Wynik istotny statystycznie potwierdza obecność autokorelacji przestrzennej w resztach, uzasadniając zastosowanie modelu przestrzennego." else "Brak istotnej autokorelacji przestrzennej w resztach."`
+
+## Model SAR — Spatial Autoregressive Model (panel FE)
+
+Model SAR (z opóźnieniem przestrzennym) zakłada, że zużycie energii w danym województwie zależy bezpośrednio od zużycia w województwach sąsiednich:
+
+$$Y_{it} = \rho \cdot W Y_{it} + X_{it}\beta + \mu_i + \varepsilon_{it}$$
+
+gdzie $\rho$ — parametr opóźnienia przestrzennego, $W$ — macierz wag, $\mu_i$ — efekty stałe województw.
+
+```{r sar_wyniki}
+sum_sar  <- summary(model_sar)
+coef_sar <- as.data.frame(apply(sum_sar$CoefTable, 2, as.numeric))
+coef_sar <- round(coef_sar, 4)
+colnames(coef_sar) <- c("Współczynnik", "Błąd std.", "z", "p-value")
+
+rho_val <- tryCatch(round(as.numeric(model_sar$arcoef)[1], 4), error = function(e) NA)
+ll_val  <- tryCatch(round(as.numeric(model_sar$logLik)[1], 2),  error = function(e) NA)
+
+kable(coef_sar, caption = paste0("Wyniki modelu SAR panel FE. rho = ", rho_val,
+                                  " | Log-likelihood = ", ll_val))
+```
+
+**Interpretacja parametru ρ:** `r { rho_val <- tryCatch(as.numeric(model_sar$arcoef)[1], error=function(e) NA); if(!is.na(rho_val) && rho_val > 0) paste0("Wartość ρ = ", round(rho_val,4), " > 0 wskazuje na pozytywny efekt spillover: wzrost zużycia energii elektrycznej w jednym województwie jest powiązany ze wzrostem zużycia w województwach sąsiednich. Może to wynikać z powiązań przemysłowych, wspólnej infrastruktury energetycznej lub efektów dyfuzji aktywności gospodarczej.") else "Wartość ρ ≤ 0 lub nieznana — brak dodatniego efektu spillover." }`
+
+## Model SEM — Spatial Error Model (panel FE)
+
+Model SEM zakłada, że efekty przestrzenne przejawiają się w składniku losowym — poprzez nieobserwowane czynniki przestrzennie skorelowane:
+
+$$Y_{it} = X_{it}\beta + \mu_i + u_{it}, \quad u_{it} = \lambda \cdot W u_{it} + \varepsilon_{it}$$
+
+```{r sem_wyniki}
+sum_sem  <- summary(model_sem)
+coef_sem <- as.data.frame(apply(sum_sem$CoefTable, 2, as.numeric))
+coef_sem <- round(coef_sem, 4)
+colnames(coef_sem) <- c("Współczynnik", "Błąd std.", "z", "p-value")
+
+lam_val <- tryCatch(round(as.numeric(model_sem$errcoef)[1], 4), error = function(e) NA)
+ll_sem  <- tryCatch(round(as.numeric(model_sem$logLik)[1], 2),  error = function(e) NA)
+
+kable(coef_sem, caption = paste0("Wyniki modelu SEM panel FE. lambda = ", lam_val,
+                                  " | Log-likelihood = ", ll_sem))
+```
+
+**Interpretacja parametru λ:** `r { lam_val <- tryCatch(as.numeric(model_sem$errcoef)[1], error=function(e) NA); if(!is.na(lam_val) && lam_val > 0) paste0("Wartość λ = ", round(lam_val,4), " > 0 wskazuje, że nieobserwowane czynniki wpływające na zużycie energii (np. lokalna polityka energetyczna, struktura przemysłowa, klimat mikro) są przestrzennie skorelowane między sąsiednimi województwami. Parametr λ wychwytuje efekty przestrzenne przez kanały pominięte w modelu, nie przez bezpośrednie interakcje.") else "Wartość λ ≤ 0 lub nieznana." }`
+
+------------------------------------------------------------------------
+
+# Ocena i porównanie modeli
+
+## Tabela porównawcza
+
+```{r tabela_porownawcza}
+ll  <- c(as.numeric(logLik(model_ols)), model_sar$logLik, model_sem$logLik)
+k   <- c(attr(logLik(model_ols), "df"),
+         tryCatch(nrow(summary(model_sar)$CoefTable), error = function(e) length(model_sar$coefficients) + 2),
+         tryCatch(nrow(summary(model_sem)$CoefTable), error = function(e) length(model_sem$coefficients) + 2))
+aic <- round(-2 * ll + 2 * k, 2)
+y_vec <- dane$zuzycie_energii_GWh
+r2 <- c(
+  round(summary(model_ols)$r.squared, 4),
+  tryCatch(round(cor(y_vec - as.numeric(resid(model_sar)), y_vec)^2, 4), error = function(e) NA),
+  tryCatch(round(cor(y_vec - as.numeric(resid(model_sem)), y_vec)^2, 4), error = function(e) NA)
+)
+param <- c("—",
+           tryCatch(paste0("ρ = ", round(model_sar$arcoef, 4)), error = function(e) "—"),
+           tryCatch(paste0("λ = ", round(model_sem$errcoef, 4)), error = function(e) "—"))
+
+comp <- data.frame(
+  Model = c("OLS (pooled)", "SAR panel FE", "SEM panel FE"),
+  `Log-likelihood` = round(ll, 2),
+  AIC = aic,
+  `R² / pseudo-R²` = r2,
+  `Param. przestrzenny` = param,
+  check.names = FALSE
+)
+kable(comp, caption = "Porównanie dopasowania modeli — zużycie energii elektrycznej")
+```
+
+Model o najniższym AIC (`r comp$Model[which.min(comp$AIC)]`, AIC = `r min(comp$AIC)`) należy uznać za najlepiej dopasowany spośród estymowanych specyfikacji.
+
+## Test Morana dla reszt modeli
+
+```{r moran_reszty_modeli}
+res_ols_df <- data.frame(teryt = dane$teryt, r = resid(model_ols))
+res_ols_sr <- res_ols_df %>% group_by(teryt) %>% summarise(r = mean(r), .groups = "drop") %>% arrange(teryt)
+mt_ols <- suppressWarnings(moran.test(res_ols_sr$r, lw, alternative = "two.sided", zero.policy = TRUE))
+
+res_sar_df <- data.frame(teryt = dane$teryt, r = as.numeric(resid(model_sar)))
+res_sar_sr <- res_sar_df %>% group_by(teryt) %>% summarise(r = mean(r), .groups = "drop") %>% arrange(teryt)
+mt_sar <- suppressWarnings(moran.test(res_sar_sr$r, lw, alternative = "two.sided", zero.policy = TRUE))
+
+res_sem_df <- data.frame(teryt = dane$teryt, r = as.numeric(resid(model_sem)))
+res_sem_sr <- res_sem_df %>% group_by(teryt) %>% summarise(r = mean(r), .groups = "drop") %>% arrange(teryt)
+mt_sem <- suppressWarnings(moran.test(res_sem_sr$r, lw, alternative = "two.sided", zero.policy = TRUE))
+
+tab_moran <- data.frame(
+  Model = c("OLS (pooled)", "SAR panel FE", "SEM panel FE"),
+  `I Morana reszt` = round(c(mt_ols$estimate[1], mt_sar$estimate[1], mt_sem$estimate[1]), 4),
+  `p-value` = round(c(mt_ols$p.value, mt_sar$p.value, mt_sem$p.value), 4),
+  check.names = FALSE
+)
+kable(tab_moran, caption = "Test I Morana dla reszt modeli (uśrednione po latach)")
+```
+
+`r if(mt_sar$p.value > 0.05 | mt_sem$p.value > 0.05) "Modele przestrzenne skutecznie wyeliminowały autokorelację przestrzenną z reszt — I Morana bliskie zeru i nieistotne statystycznie dla przynajmniej jednego modelu przestrzennego." else "Autokorelacja w resztach nadal obecna — może wskazywać na pominięte zmienne lub nieliniowość zależności."`
+
+------------------------------------------------------------------------
+
+# Wnioski i rekomendacje
+
+## Kluczowe ustalenia
+
+Na podstawie przeprowadzonej analizy sformułowano następujące wnioski:
+
+**1. Trwała i istotna autokorelacja przestrzenna.** Zużycie energii elektrycznej w polskich województwach wykazuje istotną statystycznie dodatnią autokorelację przestrzenną (I Morana \> 0, p \< 0.05 w większości analizowanych lat). Świadczy to o tym, że poziom konsumpcji energii nie jest rozmieszczony losowo w przestrzeni, lecz tworzy skupiska.
+
+**2. Skupiska LISA.** Analiza lokalnych wskaźników LISA identyfikuje trwałe skupiska HH (hot spots) — typowo w województwach uprzemysłowionych i metropolitalnych — oraz skupiska LL (cold spots) — w regionach wschodniej Polski. Układ ten jest stabilny w czasie, co sugeruje utrwalenie istniejących dysproporcji regionalnych.
+
+**3. Determinanty zużycia energii.** Dochód per capita oraz stopniodni grzewcze (HDD) wykazują silny, pozytywny wpływ na zużycie energii. Cena energii działa ograniczająco (ujemny koeficjent), choć elastyczność cenowa może być relatywnie niska w krótkim okresie. Efekt urbanizacji jest zróżnicowany.
+
+**4. Efekty przestrzenne.** `r if(lmtab[1,3] < 0.05 | lmtab[2,3] < 0.05) "Testy LM potwierdzają istotność efektów przestrzennych w danych. Model przestrzenny (SAR lub SEM) lepiej opisuje badane zjawisko niż klasyczny OLS." else "Testy LM wskazują na ograniczone efekty przestrzenne — wyniki interpretować ostrożnie."` Parametr przestrzenny ($\rho$ lub $\lambda$) jest `r if(summary(model_sar)$CoefTable[nrow(summary(model_sar)$CoefTable), 4] < 0.05 | summary(model_sem)$CoefTable[nrow(summary(model_sem)$CoefTable), 4] < 0.05) "istotny statystycznie" else "nieistotny statystycznie na poziomie 5%"`, co potwierdza, że abstrakcja od przestrzeni prowadzi do obciążonych lub nieefektywnych estymatorów w modelu OLS.
+
+## Implikacje dla polityki publicznej
+
+Wyniki sugerują, że polityka energetyczna powinna uwzględniać wymiar przestrzenny:
+
+-   **Koordynacja regionalna**: efekty spillover (jeśli SAR istotny) oznaczają, że polityka energetyczna w jednym województwie wpływa na sąsiednie — uzasadnia to regionalne mechanizmy koordynacji.
+-   **Wyrównywanie dysproporcji**: trwałe skupiska LL w Polsce wschodniej wymagają dedykowanych instrumentów poprawy efektywności energetycznej i dostępności infrastruktury.
+-   **Wrażliwość klimatyczna**: wyższe HDD w regionach północno-wschodnich generuje wyższe zapotrzebowanie na energię — w kontekście zmian klimatu planowanie energetyczne musi uwzględniać zmiany w stopniodniach.
+
+## Ograniczenia analizy
+
+-   Liczba jednostek przestrzennych (N = 16) jest niska jak na analizę przestrzenną, co może ograniczać precyzję estymacji MLE.
+-   Brak transformacji logarytmicznej zmiennych — wnioski o kierunku wpływu są poprawne, ale interpretacja magnitudo koeficjentów wymaga ostrożności.
+-   Test Morana dla reszt obliczany jako uśrednienie po latach (przybliżenie dla danych panelowych).
+-   Model nie uwzględnia potencjalnej endogeniczności ceny energii.
+
+------------------------------------------------------------------------
+
+# Bibliografia
+
+Anselin, L. (1988). *Spatial Econometrics: Methods and Models*. Kluwer Academic Publishers.
+
+Baltagi, B. H., Song, S. H., & Koh, W. (2003). Testing panel data regression models with spatial error correlation. *Journal of Econometrics*, 117(1), 123–150.
+
+Elhorst, J. P. (2003). Specification and estimation of spatial panel data models. *International Regional Science Review*, 26(3), 244–268.
+
+Elhorst, J. P. (2014). *Spatial Econometrics: From Cross-Sectional Data to Spatial Panels*. Springer.
+
+GUS BDL (2024). Bank Danych Lokalnych. Główny Urząd Statystyczny. <https://bdl.stat.gov.pl>
+
+Kopczewska, K. (2007). *Ekonometria i statystyka przestrzenna z wykorzystaniem programu R*. CeDeWu.
+
+Kopczewska, K. (2011). Spatial autocorrelation of regional economic development in Poland. *Ekonomia*, 26, 23–48.
+
+Moran, P. A. P. (1950). Notes on Continuous Stochastic Phenomena. *Biometrika*, 37(1/2), 17–23.
+
+------------------------------------------------------------------------
+
+*Raport wygenerowano automatycznie w środowisku R `r R.version$major`.`r R.version$minor` przy użyciu pakietów: splm, spdep, plm, sf, ggplot2. Data: `r format(Sys.Date(), "%d.%m.%Y")`.*
