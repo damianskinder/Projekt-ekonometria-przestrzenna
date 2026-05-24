@@ -167,6 +167,35 @@ model_sem_n <- spml(MO ~ WSK_URB + NAKL + WYNAGR + SM + WSK25_34,
                     data = as.data.frame(dane_n), index = c("teryt", "rok"), listw = lw_n,
                     model = "within", lag = FALSE, spatial.error = "b")
 
+# ── pFtest — efekty stale vs pooled ──────────────────────────
+model_pool_s <- plm(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd,
+                    data = pdata_s, model = "pooling")
+pf_s <- pFtest(model_fe_s, model_pool_s)
+
+model_pool_n <- plm(MO ~ WSK_URB + NAKL + WYNAGR + SM + WSK25_34,
+                    data = pdata_n, model = "pooling")
+pf_n <- pFtest(model_fe_n, model_pool_n)
+
+# ── Efekty bezposrednie/posrednie/calkowite (LeSage & Pace) ──
+oblicz_impacts <- function(model_sar, lw) {
+  rho   <- as.numeric(model_sar$arcoef)[1]
+  betas <- coef(model_sar)
+  W     <- listw2mat(lw)
+  n     <- nrow(W)
+  S_W   <- solve(diag(n) - rho * W)
+  dir_m <- sum(diag(S_W)) / n
+  tot_m <- sum(S_W) / n
+  ind_m <- tot_m - dir_m
+  data.frame(
+    Zmienna     = names(betas),
+    Bezposredni = round(betas * dir_m, 4),
+    Posredni    = round(betas * ind_m, 4),
+    Calkowity   = round(betas * tot_m, 4)
+  )
+}
+impacts_s <- oblicz_impacts(model_sar_s, lw_s)
+impacts_n <- oblicz_impacts(model_sar_n, lw_n)
+
 # ── Helper: asymetria ─────────────────────────────────────────
 skewness_val <- function(x) {
   x <- x[!is.na(x)]
@@ -442,7 +471,12 @@ ui <- navbarPage(
           ),
           tabPanel("Model panelowy FE (referencja)", br(),
             h4("Model efektow stalych — Zuzycie energii elektrycznej"),
-            verbatimTextOutput("modsum_s")
+            verbatimTextOutput("modsum_s"),
+            hr(),
+            h5("Test F dla efektow stalych (FE vs pooled OLS):"),
+            p(style = "color:#555; font-size:0.88em;",
+              "H0: efekty indywidualne sa nieistotne (OLS pooled wystarcza). Odrzucenie H0 uzasadnia model FE."),
+            verbatimTextOutput("pf_s_out")
           )
         )
       )
@@ -476,7 +510,14 @@ ui <- navbarPage(
               "Rownanie: Y = rho * W * Y + X * beta + mu + epsilon",
               tags$br(),
               "Parametr rho mierzy sile przestrzennego oddzialywania — jak zuzycie energii w jednym wojewodztwie zalezy od zuzycia w sasiadujacych."),
-            verbatimTextOutput("modsum_sar_s")
+            verbatimTextOutput("modsum_sar_s"),
+            hr(),
+            h5("Efekty bezposrednie, posrednie i calkowite (LeSage & Pace, 2009):"),
+            p(style = "color:#555; font-size:0.88em;",
+              "W modelu SAR wspolczynniki beta NIE sa bezposrednimi efektami marginalnymi.",
+              tags$br(),
+              "Bezposredni = wplyw zmiany Xi na Yi. Posredni (spillover) = wplyw na sasiednie jednostki. Calkowity = suma obu."),
+            tableOutput("impacts_s_out")
           ),
           tabPanel("Model SEM panel FE", br(),
             h4("Spatial Error Model (SEM) — panel, efekty stale"),
@@ -593,7 +634,12 @@ ui <- navbarPage(
           ),
           tabPanel("Model panelowy FE (referencja)", br(),
             h4("Model efektow stalych — Mieszkania oddane do uzytkowania"),
-            verbatimTextOutput("modsum_n")
+            verbatimTextOutput("modsum_n"),
+            hr(),
+            h5("Test F dla efektow stalych (FE vs pooled OLS):"),
+            p(style = "color:#555; font-size:0.88em;",
+              "H0: efekty indywidualne sa nieistotne (OLS pooled wystarcza). Odrzucenie H0 uzasadnia model FE."),
+            verbatimTextOutput("pf_n_out")
           )
         )
       )
@@ -627,7 +673,14 @@ ui <- navbarPage(
               "Rownanie: Y = rho * W * Y + X * beta + mu + epsilon",
               tags$br(),
               "Parametr rho mierzy przestrzenne oddzialywanie liczby oddawanych mieszkan miedzy wojewodztwami."),
-            verbatimTextOutput("modsum_sar_n")
+            verbatimTextOutput("modsum_sar_n"),
+            hr(),
+            h5("Efekty bezposrednie, posrednie i calkowite (LeSage & Pace, 2009):"),
+            p(style = "color:#555; font-size:0.88em;",
+              "W modelu SAR wspolczynniki beta NIE sa bezposrednimi efektami marginalnymi.",
+              tags$br(),
+              "Bezposredni = wplyw zmiany Xi na Yi. Posredni (spillover) = wplyw na sasiednie jednostki. Calkowity = suma obu."),
+            tableOutput("impacts_n_out")
           ),
           tabPanel("Model SEM panel FE", br(),
             h4("Spatial Error Model (SEM) — panel, efekty stale"),
@@ -826,7 +879,8 @@ server <- function(input, output, session) {
       rename(Zmienna = zmienna, `I srednie` = I_srednie, `I min` = I_min,
              `I max` = I_max, `% istotnych` = pct)
   }, striped = TRUE, hover = TRUE, bordered = TRUE)
-  output$modsum_s <- renderPrint({ summary(model_fe_s) })
+  output$modsum_s  <- renderPrint({ summary(model_fe_s) })
+  output$pf_s_out  <- renderPrint({ pf_s })
 
   # ── LISA — dane o zuzyciu energii ─────────────────────────
   lisa_data_s <- reactive({
@@ -881,7 +935,8 @@ server <- function(input, output, session) {
     cat("Moran I dla reszt OLS (srednia reszty po latach, per wojewodztwo):\n\n")
     print(suppressWarnings(moran.test(res_sr$reszta, lw_s, alternative = "two.sided", zero.policy = TRUE)))
   })
-  output$modsum_sar_s <- renderPrint({ summary(model_sar_s) })
+  output$modsum_sar_s  <- renderPrint({ summary(model_sar_s) })
+  output$impacts_s_out <- renderTable({ impacts_s }, striped = TRUE, hover = TRUE, bordered = TRUE)
   output$modsum_sem_s <- renderPrint({ summary(model_sem_s) })
   output$comp_tbl_s   <- renderTable({ comp_s }, striped = TRUE, hover = TRUE, bordered = TRUE)
   output$moran_comp_s <- renderPrint({
@@ -1054,7 +1109,8 @@ server <- function(input, output, session) {
       rename(Zmienna = zmienna, `I srednie` = I_srednie, `I min` = I_min,
              `I max` = I_max, `% istotnych` = pct)
   }, striped = TRUE, hover = TRUE, bordered = TRUE)
-  output$modsum_n <- renderPrint({ summary(model_fe_n) })
+  output$modsum_n  <- renderPrint({ summary(model_fe_n) })
+  output$pf_n_out  <- renderPrint({ pf_n })
 
   # ── LISA — dane o mieszkaniach ────────────────────────────
   lisa_data_n <- reactive({
@@ -1107,7 +1163,8 @@ server <- function(input, output, session) {
     cat("Moran I dla reszt OLS (srednia reszty po latach, per wojewodztwo):\n\n")
     print(suppressWarnings(moran.test(res_sr$reszta, lw_n, alternative = "two.sided", zero.policy = TRUE)))
   })
-  output$modsum_sar_n <- renderPrint({ summary(model_sar_n) })
+  output$modsum_sar_n  <- renderPrint({ summary(model_sar_n) })
+  output$impacts_n_out <- renderTable({ impacts_n }, striped = TRUE, hover = TRUE, bordered = TRUE)
   output$modsum_sem_n <- renderPrint({ summary(model_sem_n) })
   output$comp_tbl_n   <- renderTable({ comp_n }, striped = TRUE, hover = TRUE, bordered = TRUE)
   output$moran_comp_n <- renderPrint({

@@ -417,6 +417,20 @@ rownames(coef_fe) <- c("Urbanizacja [%]", "Nakłady inwestycyjne",
 kable(coef_fe, caption = "Wyniki modelu panelowego FE — mieszkania oddane do użytkowania")
 ```
 
+### Test F dla efektów stałych
+
+**H₀:** efekty indywidualne są nieistotne — wystarczy pooled OLS.
+**H₁:** efekty indywidualne są istotne — model FE jest właściwszy.
+
+```{r pFtest}
+model_pool <- plm(MO ~ WSK_URB + NAKL + WYNAGR + SM + WSK25_34,
+                  data = pdata, model = "pooling")
+pf <- pFtest(model_fe, model_pool)
+pf
+```
+
+`r { pf_pool <- plm(MO ~ WSK_URB + NAKL + WYNAGR + SM + WSK25_34, data = pdata, model = "pooling"); pf_t <- pFtest(model_fe, pf_pool); if(pf_t$p.value < 0.05) paste0("Wynik testu F = ", round(pf_t$statistic, 3), " (p = ", round(pf_t$p.value, 4), ") — **odrzucamy H₀**. Efekty stałe są istotne statystycznie, co uzasadnia stosowanie modelu FE zamiast pooled OLS.") else paste0("Wynik testu F = ", round(pf_t$statistic, 3), " (p = ", round(pf_t$p.value, 4), ") — brak podstaw do odrzucenia H₀.") }`
+
 ## Testy Lagrange Multiplier — selekcja SAR vs SEM
 
 ```{r lm_testy}
@@ -457,6 +471,32 @@ kable(coef_sar, caption = paste0("Wyniki modelu SAR panel FE. rho = ", rho_val,
 
 **Interpretacja parametru ρ:** `r { rho_val <- tryCatch(as.numeric(model_sar$arcoef)[1], error=function(e) NA); if(!is.na(rho_val) && rho_val > 0) paste0("ρ = ", round(rho_val,4), " > 0 — pozytywny efekt przestrzenny: aktywność budowlana w jednym województwie jest powiązana z wyższą aktywnością w sąsiednich. Może to wynikać z przepływów kapitału deweloperskiego, wspólnego rynku materiałów budowlanych, efektów demonstracji lub wzajemnego uzupełniania się rynków pracy.") else paste0("ρ = ", if(!is.na(rho_val)) round(rho_val,4) else "N/A", " ≤ 0 — ujemna autokorelacja przestrzenna lub brak efektu spillover.") }`
 
+### Efekty bezpośrednie, pośrednie i całkowite
+
+W modelu SAR współczynniki β **nie są** bezpośrednimi efektami marginalnymi. Dekompozycja LeSage i Pace (2009):
+
+- **Efekt bezpośredni** — wpływ zmiany $X_{ik}$ na $Y_i$ (własne województwo),
+- **Efekt pośredni (spillover)** — wpływ na $Y_j$ sąsiednich województw,
+- **Efekt całkowity** — suma obu.
+
+```{r sar_impacts}
+rho_i   <- as.numeric(model_sar$arcoef)[1]
+betas_i <- coef(model_sar)
+W_mat   <- listw2mat(lw)
+n_i     <- nrow(W_mat)
+S_W     <- solve(diag(n_i) - rho_i * W_mat)
+dir_m   <- sum(diag(S_W)) / n_i
+tot_m   <- sum(S_W) / n_i
+
+imp_tab <- data.frame(
+  Zmienna      = names(betas_i),
+  Bezposredni  = round(betas_i * dir_m, 4),
+  Posredni     = round(betas_i * (tot_m - dir_m), 4),
+  Calkowity    = round(betas_i * tot_m, 4)
+)
+kable(imp_tab, caption = "Efekty bezpośrednie, pośrednie i całkowite — model SAR (mieszkania)")
+```
+
 ## Model SEM — Spatial Error Model (panel FE)
 
 Model SEM wychwytuje efekty przestrzenne przez nieobserwowane czynniki wspólne dla sąsiadujących województw (np. regionalna polityka mieszkaniowa, dostępność i ceny gruntów, klimat inwestycyjny):
@@ -464,16 +504,19 @@ Model SEM wychwytuje efekty przestrzenne przez nieobserwowane czynniki wspólne 
 $$\text{MO}_{it} = X_{it}\beta + \mu_i + u_{it}, \quad u_{it} = \lambda \cdot W u_{it} + \varepsilon_{it}$$
 
 ```{r sem_wyniki}
-sum_sem <- summary(model_sem)
-coef_sem <- as.data.frame(sum_sem$CoefTable)
+sum_sem  <- summary(model_sem)
+coef_sem <- as.data.frame(apply(sum_sem$CoefTable, 2, as.numeric))
 coef_sem <- round(coef_sem, 4)
 colnames(coef_sem) <- c("Współczynnik", "Błąd std.", "z", "p-value")
-kable(coef_sem, caption = paste0("Wyniki modelu SEM panel FE. lambda = ",
-                                  round(model_sem$errcoef, 4),
-                                  " | Log-likelihood = ", round(model_sem$logLik, 2)))
+
+lam_val <- tryCatch(round(as.numeric(model_sem$errcoef)[1], 4), error = function(e) NA)
+ll_sem  <- tryCatch(round(as.numeric(model_sem$logLik)[1], 2),  error = function(e) NA)
+
+kable(coef_sem, caption = paste0("Wyniki modelu SEM panel FE. lambda = ", lam_val,
+                                  " | Log-likelihood = ", ll_sem))
 ```
 
-**Interpretacja parametru λ:** `r if(model_sem$errcoef > 0) paste0("λ = ", round(model_sem$errcoef, 4), " > 0 — pominięte zmienne wpływające na budownictwo mieszkaniowe są przestrzennie skorelowane między sąsiednimi województwami. Mogą to być: lokalna polityka planistyczna i dostępność terenów inwestycyjnych, regionalny klimat gospodarczy, wspólna infrastruktura (węzły komunikacyjne), czy też historycznie ukształtowane wzorce własności i urbanizacji.") else "λ < 0."`
+**Interpretacja parametru λ:** `r { lam_val <- tryCatch(as.numeric(model_sem$errcoef)[1], error=function(e) NA); if(!is.na(lam_val) && lam_val > 0) paste0("λ = ", round(lam_val,4), " > 0 — pominięte zmienne wpływające na budownictwo mieszkaniowe są przestrzennie skorelowane między sąsiednimi województwami. Mogą to być: lokalna polityka planistyczna i dostępność terenów inwestycyjnych, regionalny klimat gospodarczy, wspólna infrastruktura (węzły komunikacyjne), czy też historycznie ukształtowane wzorce własności i urbanizacji.") else "λ ≤ 0 lub nieznana." }`
 
 ---
 
@@ -494,8 +537,8 @@ r2 <- c(
   tryCatch(round(cor(y_vec - as.numeric(resid(model_sem)), y_vec)^2, 4), error = function(e) NA)
 )
 param <- c("—",
-           tryCatch(paste0("ρ = ", round(model_sar$arcoef, 4)), error = function(e) "—"),
-           tryCatch(paste0("λ = ", round(model_sem$errcoef, 4)), error = function(e) "—"))
+           tryCatch(paste0("ρ = ", round(as.numeric(model_sar$arcoef)[1], 4)), error = function(e) "—"),
+           tryCatch(paste0("λ = ", round(as.numeric(model_sem$errcoef)[1], 4)), error = function(e) "—"))
 
 comp <- data.frame(
   Model = c("OLS (pooled)", "SAR panel FE", "SEM panel FE"),

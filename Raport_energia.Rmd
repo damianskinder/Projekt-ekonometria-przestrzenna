@@ -425,6 +425,22 @@ rownames(coef_fe) <- c("Dochód per capita", "Urbanizacja [%]",
 kable(coef_fe, caption = "Wyniki modelu panelowego FE — zużycie energii elektrycznej")
 ```
 
+### Test F dla efektów stałych
+
+Przed interpretacją wyników FE należy formalnie zweryfikować, czy efekty indywidualne są istotne statystycznie. Test F porównuje model FE (within) z modelem pooled OLS.
+
+**H₀:** efekty indywidualne są nieistotne — wystarczy pooled OLS.
+**H₁:** efekty indywidualne są istotne — model FE jest właściwszy.
+
+```{r pFtest}
+model_pool <- plm(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd,
+                  data = pdata, model = "pooling")
+pf <- pFtest(model_fe, model_pool)
+pf
+```
+
+`r { pf_pool <- plm(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd, data = pdata, model = "pooling"); pf_t <- pFtest(model_fe, pf_pool); if(pf_t$p.value < 0.05) paste0("Wynik testu F = ", round(pf_t$statistic, 3), " (p = ", round(pf_t$p.value, 4), ") — **odrzucamy H₀**. Efekty stałe są istotne statystycznie, co uzasadnia stosowanie modelu FE zamiast pooled OLS.") else paste0("Wynik testu F = ", round(pf_t$statistic, 3), " (p = ", round(pf_t$p.value, 4), ") — brak podstaw do odrzucenia H₀.") }`
+
 ## Testy Lagrange Multiplier — selekcja SAR vs SEM
 
 Testy LM pozwalają wybrać właściwą specyfikację modelu przestrzennego.
@@ -472,6 +488,32 @@ kable(coef_sar, caption = paste0("Wyniki modelu SAR panel FE. rho = ", rho_val,
 
 **Interpretacja parametru ρ:** `r { rho_val <- tryCatch(as.numeric(model_sar$arcoef)[1], error=function(e) NA); if(!is.na(rho_val) && rho_val > 0) paste0("Wartość ρ = ", round(rho_val,4), " > 0 wskazuje na pozytywny efekt spillover: wzrost zużycia energii elektrycznej w jednym województwie jest powiązany ze wzrostem zużycia w województwach sąsiednich. Może to wynikać z powiązań przemysłowych, wspólnej infrastruktury energetycznej lub efektów dyfuzji aktywności gospodarczej.") else "Wartość ρ ≤ 0 lub nieznana — brak dodatniego efektu spillover." }`
 
+### Efekty bezpośrednie, pośrednie i całkowite
+
+W modelu SAR współczynniki β **nie są** bezpośrednimi efektami marginalnymi — zmiana zmiennej w jednym województwie przenosi się przez macierz W na sąsiednie, które sprzężeniem zwrotnym wpływają z powrotem na punkt wyjścia. Dekompozycja LeSage i Pace (2009) pozwala wyodrębnić:
+
+- **Efekt bezpośredni** — wpływ zmiany $X_{ik}$ na $Y_i$ (własna jednostka),
+- **Efekt pośredni (spillover)** — wpływ na $Y_j$ sąsiednich województw,
+- **Efekt całkowity** — suma obu.
+
+```{r sar_impacts}
+rho_i  <- as.numeric(model_sar$arcoef)[1]
+betas_i <- coef(model_sar)
+W_mat  <- listw2mat(lw)
+n_i    <- nrow(W_mat)
+S_W    <- solve(diag(n_i) - rho_i * W_mat)
+dir_m  <- sum(diag(S_W)) / n_i
+tot_m  <- sum(S_W) / n_i
+
+imp_tab <- data.frame(
+  Zmienna      = names(betas_i),
+  Bezposredni  = round(betas_i * dir_m, 4),
+  Posredni     = round(betas_i * (tot_m - dir_m), 4),
+  Calkowity    = round(betas_i * tot_m, 4)
+)
+kable(imp_tab, caption = "Efekty bezpośrednie, pośrednie i całkowite — model SAR (zużycie energii)")
+```
+
 ## Model SEM — Spatial Error Model (panel FE)
 
 Model SEM zakłada, że efekty przestrzenne przejawiają się w składniku losowym — poprzez nieobserwowane czynniki przestrzennie skorelowane:
@@ -512,8 +554,8 @@ r2 <- c(
   tryCatch(round(cor(y_vec - as.numeric(resid(model_sem)), y_vec)^2, 4), error = function(e) NA)
 )
 param <- c("—",
-           tryCatch(paste0("ρ = ", round(model_sar$arcoef, 4)), error = function(e) "—"),
-           tryCatch(paste0("λ = ", round(model_sem$errcoef, 4)), error = function(e) "—"))
+           tryCatch(paste0("ρ = ", round(as.numeric(model_sar$arcoef)[1], 4)), error = function(e) "—"),
+           tryCatch(paste0("λ = ", round(as.numeric(model_sem$errcoef)[1], 4)), error = function(e) "—"))
 
 comp <- data.frame(
   Model = c("OLS (pooled)", "SAR panel FE", "SEM panel FE"),
