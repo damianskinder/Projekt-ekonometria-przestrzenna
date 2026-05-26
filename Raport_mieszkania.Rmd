@@ -403,6 +403,17 @@ kable(coef_tab, caption = paste0("Wyniki modelu OLS (pooled). R² = ",
                                   ", R² adj. = ", round(sum_ols$adj.r.squared, 4)))
 ```
 
+Model OLS oszacowany dla liczby mieszkań oddanych do użytkowania charakteryzuje się dobrym dopasowaniem do danych. Wartość współczynnika R² wynosi 0,7787 co
+oznacza, że model wyjaśnia około 77,9% zmienności zmiennej zależnej. Skorygowany współczynnik determinacji osiągnął poziom 0,7753, co potwierdza dopasowanie
+modelu do danych, nawet po uwzględnieniu liczby zmiennych objaśniających.
+Istotność całego modelu została potwierdzona testem F (F = 232,2; p < 0,001), co oznacza że istnieje statycznie istotna zależność między liczbą mieszkań
+oddanych do użytku a co najmniej jedną ze zmiennych objaśnianych.
+
+Analiza poszczególnych parametrów wskazuje, że istotny dodatni wpływ na liczbę mieszkań oddanych do użytkowania mają nakłady inwestycyjne oraz saldo migracji. W przypadku nakładów inwestycyjnych wzrost o jedną jednostkę powoduje wzrost liczby mieszkań oddanych do użytku o około 2 jednostki, natomiast wzrost salda migracji o jedną jednostkę powoduje przeciętny wzrost liczby mieszkań oddanych do użytku o około 3299 jednostek.
+
+Pozostałe zmienne, tj. wskaźnik urbanizacji, wynagrodzenia i liczba ludności w wieku 25-34 lata okazały się nieistotne statystycznie przy poziomie istotności 0,05.
+
+
 ## Model panelowy FE (referencja do testów LM)
 
 Model efektów stałych kontroluje nieobserwowane, stałe w czasie cechy województw (np. lokalne regulacje planistyczne, dostępność terenów budowlanych, preferencje kulturowe).
@@ -471,6 +482,18 @@ kable(coef_sar, caption = paste0("Wyniki modelu SAR panel FE. rho = ", rho_val,
 
 **Interpretacja parametru ρ:** `r { rho_val <- tryCatch(as.numeric(model_sar$arcoef)[1], error=function(e) NA); if(!is.na(rho_val) && rho_val > 0) paste0("ρ = ", round(rho_val,4), " > 0 — pozytywny efekt przestrzenny: aktywność budowlana w jednym województwie jest powiązana z wyższą aktywnością w sąsiednich. Może to wynikać z przepływów kapitału deweloperskiego, wspólnego rynku materiałów budowlanych, efektów demonstracji lub wzajemnego uzupełniania się rynków pracy.") else paste0("ρ = ", if(!is.na(rho_val)) round(rho_val,4) else "N/A", " ≤ 0 — ujemna autokorelacja przestrzenna lub brak efektu spillover.") }`
 
+**Testowanie istotności autoregresjii przestrzennej:** Wartość współczynnika rho wyniosła 0,165, a parametr okazał się statystycznie istotny (p = 0,007). Oznacza to, że 
+występują słabe dodatnie zależności przestrzenne w sąsiednich województwach. Na liczbę oddanych do użytku mieszkań w danym województwie wpływa liczba oddanych do użytku 
+mieszkań w sąsiednim województwie.
+
+Istotność parametrów oceniono na podstawie porównania wartości p z poziomem istotności, wynoszącym 0,05. Wśród istotnych statystycznie zmiennych znalazły się: 
+
+* wskaźnik urbanizacji - wzrost tego wskaźnika o jedną jednostkę powoduje spadek liczby mieszkań oddanych do użytku o 108,2 tys jednostek,
+* nakłady inwestycyjne, których wzrost o jedną jednostkę powoduje wzrost liczby mieszkań oddanych do użytku o około 1,22 jednostki, cetris paribus. 
+
+Zmienne: wynagrodzenia, saldo migracji i udział osób w wieku 25-34 lata okazały się nieistotne statycznie.
+
+
 ### Efekty bezpośrednie, pośrednie i całkowite
 
 W modelu SAR współczynniki β **nie są** bezpośrednimi efektami marginalnymi. Dekompozycja LeSage i Pace (2009):
@@ -517,6 +540,15 @@ kable(coef_sem, caption = paste0("Wyniki modelu SEM panel FE. lambda = ", lam_va
 ```
 
 **Interpretacja parametru λ:** `r { lam_val <- tryCatch(as.numeric(model_sem$errcoef)[1], error=function(e) NA); if(!is.na(lam_val) && lam_val > 0) paste0("λ = ", round(lam_val,4), " > 0 — pominięte zmienne wpływające na budownictwo mieszkaniowe są przestrzennie skorelowane między sąsiednimi województwami. Mogą to być: lokalna polityka planistyczna i dostępność terenów inwestycyjnych, regionalny klimat gospodarczy, wspólna infrastruktura (węzły komunikacyjne), czy też historycznie ukształtowane wzorce własności i urbanizacji.") else "λ ≤ 0 lub nieznana." }`
+
+**Autokorelacja przestrzenna** Parametr lambda wyniósł 0,331 i okazał się istotny statystycznie, co oznacza, że po uwzględnieniu zmiennych objaśniających nadal pozostaje zależność przestrzenna.
+
+Spośród analizowanych zmiennych objaśniających istotny wpływ na liczbę oddanych do użytku mieszkań mają:
+
+* wskaźnik urbanizacji - wzrost tego wskaźnika o jedną jednostkę, powoduje spadek liczby oddanych mieszkań o około 123,7 tys jednostek, 
+* nakłady inwestycyjne, których wzrost o jedną jednostkę powoduje wzost zmiennej objaśnianej o około 1,23 jednostki, ceteris paribus.
+
+Pozostałe zmienne: wynagrodzenia, saldo migracji i udział osób w wieku 24-35 lat okazały się nieistotne statystycznie.
 
 ---
 
