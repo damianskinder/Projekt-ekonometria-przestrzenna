@@ -243,7 +243,7 @@ corrplot(cor(zm_cor, use = "complete.obs"),
          title = "Macierz korelacji", mar = c(0, 0, 2, 0))
 ```
 
-Macierz korelacji ujawnia silną, dodatnią korelację zużycia energii z PKB i dochodem per capita, co jest zgodne z oczekiwaniami teoretycznymi. Korelacja z ceną energii jest ujemna, potwierdzając efekt cenowy. Stopniodni grzewcze (HDD) wykazują słabszą korelację z zużyciem energii — może to wynikać z faktu, że ogrzewanie w Polsce opiera się częściowo na gazie i węglu, nie tylko na energii elektrycznej.
+Najsilniejszą zależnością w zbiorze jest korelacja zużycia energii z PKB (r = 0,87), co potwierdza klasyczne powiązanie aktywności gospodarczej z energochłonnością. Zaskakująca jest natomiast wysoka korelacja dochodu per capita z ceną energii (r = 0,88) przy jednocześnie słabej korelacji dochodu z samym zużyciem energii (r = 0,26), sugeruje to, że zamożniejsze społeczeństwa płacą więcej za energię, niekoniecznie konsumując jej proporcjonalnie więcej, co może odzwierciedlać wyższy udział droższych, czystszych nośników w ich koszyku energetycznym. Ujemna korelacja urbanizacji z dochodem (r = −0,51) wskazuje na obecność w próbie obszarów silnie zurbanizowanych lecz o niskiej zamożności. Wskaźniki klimatyczne HDD i CDD pozostają praktycznie nieskorelowane z zużyciem energii, co można tłumaczyć dominacją paliw nieelektrycznych w ogrzewaniu.
 
 ## Rozkłady zmiennych
 
@@ -634,6 +634,8 @@ Wyniki sugerują, że polityka energetyczna powinna uwzględniać wymiar przestr
 Anselin, L. (1988). *Spatial Econometrics: Methods and Models*. Kluwer Academic Publishers.
 
 Baltagi, B. H., Song, S. H., & Koh, W. (2003). Testing panel data regression models with spatial error correlation. *Journal of Econometrics*, 117(1), 123–150.
+
+Działek, J. (2011). Kapitał społeczny jako czynnik rozwoju gospodarczego w skali regionalnej i lokalnej w Polsce. Wydawnictwo Uniwersytetu Jagiellońskiego, Kraków. 978-83-233-3209-1.
 
 Elhorst, J. P. (2003). Specification and estimation of spatial panel data models. *International Regional Science Review*, 26(3), 244–268.
 
