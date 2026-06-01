@@ -45,41 +45,41 @@ lata_n <- sort(unique(dane_n$rok))
 
 # ── Konfiguracje zmiennych ────────────────────────────────────
 mapa_zm_s <- list(
-  "Zuzycie energii elektrycznej [GWh]" = list(col = "zuzycie_energii_GWh", low = "lightyellow", high = "#08306b"),
+  "Zużycie energii elektrycznej [GWh]" = list(col = "zuzycie_energii_GWh", low = "lightyellow", high = "#2166ac"),
   "Cena energii elektrycznej [zl/kWh]" = list(col = "cena_energii_zl_kWh", low = "#fff7ec",     high = "#7f0000"),
   "PKB [mld zl]"                       = list(col = "pkb_mld_zl",           low = "#f7fcf5",     high = "#00441b"),
-  "Liczba ludnosci [osoby]"            = list(col = "ludnosc",              low = "#f7fbff",     high = "#08306b"),
+  "Liczba ludności [osoby]"            = list(col = "ludnosc",              low = "#f7fbff",     high = "#2166ac"),
   "Urbanizacja [%]"                    = list(col = "urbanizacja_pct",      low = "#fff5eb",     high = "#7f2704"),
   "Stopniodni grzewcze - HDD"          = list(col = "hdd",                  low = "#ffffd9",     high = "#081d58"),
   "Stopniodni chlodzenia - CDD"        = list(col = "cdd",                  low = "#fff7fb",     high = "#67001f")
 )
 mapa_zm_n <- list(
-  "Mieszkania oddane do uzytkowania"          = list(col = "MO",       low = "lightyellow", high = "#08306b"),
-  "Ludnosc w wieku 25-34 lat"                 = list(col = "WSK25_34", low = "#fff7ec",     high = "#7f0000"),
+  "Mieszkania oddane do użytkowania"          = list(col = "MO",       low = "lightyellow", high = "#2166ac"),
+  "Ludność w wieku 25-34 lat"                 = list(col = "WSK25_34", low = "#fff7ec",     high = "#7f0000"),
   "Wskaznik urbanizacji [%]"                  = list(col = "WSK_URB",  low = "#f7fcf5",     high = "#00441b"),
-  "Naklady inwestycyjne w sektorze prywatnym" = list(col = "NAKL",     low = "#f7fbff",     high = "#08306b"),
+  "Naklady inwestycyjne w sektorze prywatnym" = list(col = "NAKL",     low = "#f7fbff",     high = "#2166ac"),
   "Srednie wynagrodzenie [zl]"                = list(col = "WYNAGR",   low = "#fff5eb",     high = "#7f2704"),
   "Saldo migracji"                            = list(col = "SM",       low = "#ffffd9",     high = "#081d58")
 )
 wiz_zm_s <- list(
-  "Zuzycie energii elektrycznej [GWh]" = list(col = "zuzycie_energii_GWh", ylab = "Zuzycie [GWh]",  jed = "GWh"),
-  "PKB [mld zl]"                       = list(col = "pkb_mld_zl",           ylab = "PKB [mld zl]",   jed = "mld zl"),
-  "Cena energii elektrycznej [zl/kWh]" = list(col = "cena_energii_zl_kWh",  ylab = "Cena [zl/kWh]", jed = "zl/kWh"),
+  "Zużycie energii elektrycznej [GWh]" = list(col = "zuzycie_energii_GWh", ylab = "Zuzycie [GWh]",  jed = "GWh"),
+  "PKB [mld zł]"                       = list(col = "pkb_mld_zl",           ylab = "PKB [mld zl]",   jed = "mld zl"),
+  "Cena energii elektrycznej [zł/kWh]" = list(col = "cena_energii_zl_kWh",  ylab = "Cena [zl/kWh]", jed = "zl/kWh"),
   "Stopniodni grzewcze HDD"            = list(col = "hdd",                  ylab = "HDD",            jed = "HDD"),
   "Urbanizacja [%]"                    = list(col = "urbanizacja_pct",      ylab = "Udzial [%]",     jed = "%"),
-  "Liczba ludnosci"                    = list(col = "ludnosc",              ylab = "Ludnosc [os.]",  jed = "os."),
-  "Stopniodni chlodzenia CDD"          = list(col = "cdd",                  ylab = "CDD",            jed = "CDD")
+  "Liczba ludności"                    = list(col = "ludnosc",              ylab = "Ludnosc [os.]",  jed = "os."),
+  "Stopniodni chłodzenia CDD"          = list(col = "cdd",                  ylab = "CDD",            jed = "CDD")
 )
 wiz_zm_n <- list(
-  "Mieszkania oddane do uzytkowania"          = list(col = "MO",       ylab = "Liczba mieszkan",    jed = "Mieszkania"),
-  "Ludnosc w wieku 25-34 lat"                 = list(col = "WSK25_34", ylab = "Liczba osob",        jed = "Osoby"),
-  "Wskaznik urbanizacji [%]"                  = list(col = "WSK_URB",  ylab = "Udzial [%]",         jed = "%"),
-  "Naklady inwestycyjne w sektorze prywatnym" = list(col = "NAKL",     ylab = "Naklady [zl]",       jed = "zl"),
-  "Srednie wynagrodzenie [zl]"                = list(col = "WYNAGR",   ylab = "Wynagrodzenie [zl]", jed = "zl"),
+  "Mieszkania oddane do użytkowania"          = list(col = "MO",       ylab = "Liczba mieszkan",    jed = "Mieszkania"),
+  "Ludność w wieku 25-34 lat"                 = list(col = "WSK25_34", ylab = "Liczba osob",        jed = "Osoby"),
+  "Wskaźnik urbanizacji [%]"                  = list(col = "WSK_URB",  ylab = "Udzial [%]",         jed = "%"),
+  "Nakłady inwestycyjne w sektorze prywatnym" = list(col = "NAKL",     ylab = "Naklady [zl]",       jed = "zl"),
+  "Średnie wynagrodzenie [zł]"                = list(col = "WYNAGR",   ylab = "Wynagrodzenie [zl]", jed = "zl"),
   "Saldo migracji"                            = list(col = "SM",       ylab = "Saldo [os./1000]",   jed = "os./1000")
 )
 auto_zm_s <- list(
-  "Zuzycie energii elektrycznej [GWh]" = "zuzycie_energii_GWh",
+  "Zużycie energii elektrycznej [GWh]" = "zuzycie_energii_GWh",
   "Cena energii elektrycznej [zl/kWh]" = "cena_energii_zl_kWh",
   "PKB [mln zl]"                       = "pkb_mln_zl",
   "Liczba ludnosci"                    = "ludnosc",
@@ -297,6 +297,11 @@ css <- "
     padding: 10px 14px; border-radius: 4px; font-size: 0.88em; color: #1a3a5c;
     margin-bottom: 16px;
   }
+   .shiny-html-output table td, 
+  .shiny-html-output table th {
+    white-space: nowrap;
+    padding: 4px 10px;
+  }
 "
 
 # ── Funkcje kart ──────────────────────────────────────────────
@@ -337,14 +342,14 @@ ui <- navbarPage(
     div(class = "sekcja",
 
       div(class = "sekcja-naglowek",
-        "Dane o zuzyciu energii elektrycznej — panel_wojewodztwa_2004_2024.csv",
+        "Dane o zużyciu energii elektrycznej — panel_wojewodztwa_2004_2024.csv",
         tags$br(),
         tags$span(style = "font-weight:400; color:#555;",
-          "Zmienne: zuzycie energii, cena energii, PKB, ludnosc, urbanizacja, HDD, CDD, dochod")
+          "Zmienne: zużycie energii, cena energii, PKB, ludność, urbanizacja, HDD, CDD, dochód")
       ),
       div(class = "karty-rzad",
         karta("mapa_s",  "Mapa interaktywna",
-              "Interaktywna mapa wojewodztw z suwakiem roku i wyborem zmiennej.", "Map"),
+              "Interaktywna mapa województw z suwakiem roku i wyborem zmiennej.", "Map"),
         karta("wiz_s",   "Wizualizacje",
               "Wykresy liniowe, heatmapy, histogramy, boxploty i macierz korelacji.", "Chart"),
         karta("auto_s",  "Autokorelacja przestrzenna",
@@ -352,20 +357,20 @@ ui <- navbarPage(
         karta("model_s", "Modelowanie przestrzenne",
               "OLS benchmark, testy LM, modele SAR i SEM panel FE, porownanie AIC.", "Model"),
         karta_gif("zuz", "Animacja — zuzycie energii",
-              "Zmiany zuzycia energii elektrycznej w wojewodztwach w latach 2004-2024.")
+              "Zmiany zużycia energii elektrycznej w wojewodztwach w latach 2004-2024.")
       ),
 
       tags$hr(style = "margin: 30px 0;"),
 
       div(class = "sekcja-naglowek",
-        "Dane o mieszkaniach oddanych do uzytkowania — nowe_dane.xlsx",
+        "Dane o mieszkaniach oddanych do użytkowania — nowe_dane.xlsx",
         tags$br(),
         tags$span(style = "font-weight:400; color:#555;",
           "Zmienne: mieszkania oddane, ludnosc 25-34, urbanizacja, naklady, wynagrodzenie, migracja")
       ),
       div(class = "karty-rzad",
         karta("mapa_n",  "Mapa interaktywna",
-              "Interaktywna mapa wojewodztw z suwakiem roku i wyborem zmiennej.", "Map"),
+              "Interaktywna mapa województw z suwakiem roku i wyborem zmiennej.", "Map"),
         karta("wiz_n",   "Wizualizacje",
               "Wykresy liniowe, heatmapy, histogramy, boxploty i macierz korelacji.", "Chart"),
         karta("auto_n",  "Autokorelacja przestrzenna",
@@ -392,7 +397,7 @@ ui <- navbarPage(
         ),
         mainPanel(width = 9,
           plotOutput("mapa_s", height = "580px"), hr(),
-          h5("Wszystkie wojewodztwa — wybrany rok:"), tableOutput("tab_s")
+          h5("Wszystkie województwa — wybrany rok:"), tableOutput("tab_s")
         )
       )
     ),
@@ -467,13 +472,13 @@ ui <- navbarPage(
           ),
           tabPanel("I Morana w czasie", br(),
             plotOutput("mczas_s", height = "460px"), hr(),
-            h5("Tabela podsumowujaca:"), tableOutput("tauto_s")
+            h5("Tabela podsumowująca:"), tableOutput("tauto_s")
           ),
           tabPanel("Model panelowy FE (referencja)", br(),
-            h4("Model efektow stalych — Zuzycie energii elektrycznej"),
+            h4("Model efektów stalych — Zuzycie energii elektrycznej"),
             verbatimTextOutput("modsum_s"),
             hr(),
-            h5("Test F dla efektow stalych (FE vs pooled OLS):"),
+            h5("Test F dla efektów stalych (FE vs pooled OLS):"),
             p(style = "color:#555; font-size:0.88em;",
               "H0: efekty indywidualne sa nieistotne (OLS pooled wystarcza). Odrzucenie H0 uzasadnia model FE."),
             verbatimTextOutput("pf_s_out")
@@ -486,15 +491,15 @@ ui <- navbarPage(
       fluidPage(br(),
         tabsetPanel(
           tabPanel("OLS (benchmark)", br(),
-            h4("Model OLS (pooled) — Zuzycie energii elektrycznej [GWh]"),
+            h4("Model OLS (pooled) — Zużycie energii elektrycznej [GWh]"),
             p(style = "color:#555; font-size:0.88em;",
-              "Model klasyczny bez uwzglednienia struktury przestrzennej ani efektow indywidualnych. Sluzy jako punkt odniesienia."),
+              "Model klasyczny bez uwzglednienia struktury przestrzennej ani efektów indywidualnych. Sluzy jako punkt odniesienia."),
             verbatimTextOutput("modsum_ols_s")
           ),
           tabPanel("Testy LM", br(),
             h4("Testy Lagrange Multiplier — selekcja SAR vs SEM"),
             div(class = "lm-hint",
-              tags$b("Regula decyzyjna:"), tags$br(),
+              tags$b("reguła decyzyjna:"), tags$br(),
               "1. Jesli oba LM istotne — patrz na Robust: istotny Robust LM-Lag wskazuje SAR, istotny Robust LM-Error wskazuje SEM.", tags$br(),
               "2. Jesli tylko jeden LM istotny — wybierz odpowiadajacy model.", tags$br(),
               "3. Jesli zadne Robust nieistotne — roznice miedzy modelami moga byc minimalne."
@@ -507,24 +512,24 @@ ui <- navbarPage(
           tabPanel("Model SAR panel FE", br(),
             h4("Spatial Autoregressive Model (SAR) — panel, efekty stale"),
             p(style = "color:#555; font-size:0.88em;",
-              "Rownanie: Y = rho * W * Y + X * beta + mu + epsilon",
+              "Równanie: Y = rho * W * Y + X * beta + mu + epsilon",
               tags$br(),
-              "Parametr rho mierzy sile przestrzennego oddzialywania — jak zuzycie energii w jednym wojewodztwie zalezy od zuzycia w sasiadujacych."),
+              "Parametr rho mierzy siłę przestrzennego oddziaływania — jak zużycie energii w jednym województwie zależy od zużycia w sąsiadujących."),
             verbatimTextOutput("modsum_sar_s"),
             hr(),
-            h5("Efekty bezposrednie, posrednie i calkowite (LeSage & Pace, 2009):"),
+            h5("Efekty bezpośrednie, pośrednie i całkowite (LeSage & Pace, 2009):"),
             p(style = "color:#555; font-size:0.88em;",
-              "W modelu SAR wspolczynniki beta NIE sa bezposrednimi efektami marginalnymi.",
+              "W modelu SAR wspołczynniki beta NIE są bezpośrednimi efektami marginalnymi.",
               tags$br(),
-              "Bezposredni = wplyw zmiany Xi na Yi. Posredni (spillover) = wplyw na sasiednie jednostki. Calkowity = suma obu."),
+              "Bezpośredni = wpływ zmiany Xi na Yi. Pośredni (spillover) = wplyw na sasiednie jednostki. Calkowity = suma obu."),
             tableOutput("impacts_s_out")
           ),
           tabPanel("Model SEM panel FE", br(),
             h4("Spatial Error Model (SEM) — panel, efekty stale"),
             p(style = "color:#555; font-size:0.88em;",
-              "Rownanie: Y = X * beta + mu + u,  u = lambda * W * u + epsilon",
+              "Równanie: Y = X * beta + mu + u,  u = lambda * W * u + epsilon",
               tags$br(),
-              "Parametr lambda mierzy przestrzenna autokorelacje w skladniku losowym — nieobserwowane czynniki przestrzenne."),
+              "Parametr lambda mierzy przestrzenna autokorelacje w składniku losowym — nieobserwowane czynniki przestrzenne."),
             verbatimTextOutput("modsum_sem_s")
           ),
           tabPanel("Porownanie modeli", br(),
@@ -542,7 +547,7 @@ ui <- navbarPage(
   ),
 
   # ── Dane o mieszkaniach ───────────────────────────────────
-  navbarMenu("Dane o mieszkaniach oddanych do uzytkowania",
+  navbarMenu("Dane o mieszkaniach oddanych do użytkowania",
 
     tabPanel("Mapa interaktywna", value = "mapa_n",
       sidebarLayout(
@@ -551,11 +556,11 @@ ui <- navbarPage(
           sliderInput("rok_n", "Rok:", min = min(lata_n), max = max(lata_n), value = 2015, step = 1, sep = "",
                       animate = animationOptions(interval = 1200)),
           hr(), h5("Statystyki opisowe:"), tableOutput("stat_n"),
-          hr(), h5("Obserwacje odstajace (IQR):"), tableOutput("outlier_n")
+          hr(), h5("Obserwacje odstające (IQR):"), tableOutput("outlier_n")
         ),
         mainPanel(width = 9,
           plotOutput("mapa_n", height = "580px"), hr(),
-          h5("Wszystkie wojewodztwa — wybrany rok:"), tableOutput("tab_n")
+          h5("Wszystkie województwa — wybrany rok:"), tableOutput("tab_n")
         )
       )
     ),
@@ -630,13 +635,13 @@ ui <- navbarPage(
           ),
           tabPanel("I Morana w czasie", br(),
             plotOutput("mczas_n", height = "460px"), hr(),
-            h5("Tabela podsumowujaca:"), tableOutput("tauto_n")
+            h5("Tabela podsumowująca:"), tableOutput("tauto_n")
           ),
           tabPanel("Model panelowy FE (referencja)", br(),
-            h4("Model efektow stalych — Mieszkania oddane do uzytkowania"),
+            h4("Model efektów stalych — Mieszkania oddane do uzytkowania"),
             verbatimTextOutput("modsum_n"),
             hr(),
-            h5("Test F dla efektow stalych (FE vs pooled OLS):"),
+            h5("Test F dla efektów stalych (FE vs pooled OLS):"),
             p(style = "color:#555; font-size:0.88em;",
               "H0: efekty indywidualne sa nieistotne (OLS pooled wystarcza). Odrzucenie H0 uzasadnia model FE."),
             verbatimTextOutput("pf_n_out")
@@ -649,15 +654,15 @@ ui <- navbarPage(
       fluidPage(br(),
         tabsetPanel(
           tabPanel("OLS (benchmark)", br(),
-            h4("Model OLS (pooled) — Mieszkania oddane do uzytkowania"),
+            h4("Model OLS (pooled) — Mieszkania oddane do użytkowania"),
             p(style = "color:#555; font-size:0.88em;",
-              "Model klasyczny bez uwzglednienia struktury przestrzennej ani efektow indywidualnych."),
+              "Model klasyczny bez uwzględnienia struktury przestrzennej ani efektów indywidualnych."),
             verbatimTextOutput("modsum_ols_n")
           ),
           tabPanel("Testy LM", br(),
             h4("Testy Lagrange Multiplier — selekcja SAR vs SEM"),
             div(class = "lm-hint",
-              tags$b("Regula decyzyjna:"), tags$br(),
+              tags$b("reguła decyzyjna:"), tags$br(),
               "1. Jesli oba LM istotne — patrz na Robust: istotny Robust LM-Lag wskazuje SAR, istotny Robust LM-Error wskazuje SEM.", tags$br(),
               "2. Jesli tylko jeden LM istotny — wybierz odpowiadajacy model.", tags$br(),
               "3. Jesli zadne Robust nieistotne — roznice miedzy modelami moga byc minimalne."
