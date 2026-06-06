@@ -383,9 +383,9 @@ kable(df_lisa_full, caption = "Wartości LISA dla zużycia energii elektrycznej 
 
 Analiza skupisk LISA pozwala zidentyfikować:
 
--   **Skupiska HH (hot spots)**: województwa o wysokim zużyciu energii otoczone przez podobne sąsiedztwa — typowo obszary koncentracji przemysłu i usług,
--   **Skupiska LL (cold spots)**: województwa o niskim zużyciu otoczone przez sąsiedztwa o niskim zużyciu — typowo regiony wschodniej Polski,
--   **Obserwacje NS**: województwa, których lokalna autokorelacja przestrzenna nie jest statystycznie istotna.
+- **Skupiska HH (hot spots)**: województwa o wysokim zużyciu energii otoczone przez podobne sąsiedztwa — typowo obszary koncentracji przemysłu i usług,
+- **Skupiska LL (cold spots)**: województwa o niskim zużyciu otoczone przez sąsiedztwa o niskim zużyciu — typowo regiony wschodniej Polski,
+- **Obserwacje NS**: województwa, których lokalna autokorelacja przestrzenna nie jest statystycznie istotna.
 
 ------------------------------------------------------------------------
 
@@ -397,7 +397,7 @@ Pierwszym krokiem jest estymacja klasycznego modelu OLS bez uwzględnienia struk
 
 **Równanie modelu:**
 
-$$\text{Zużycie}_{it} = \beta_0 + \beta_1 \text{dochod\_os}_{it} + \beta_2 \text{urbanizacja}_{it} + \beta_3 \text{cena}_{it} + \beta_4 \text{hdd}_{it} + \beta_5 \text{cdd}_{it} + \varepsilon_{it}$$
+$$\text{Zużycie}_{it} = \beta_0 + \beta_1 \text{dochod_os}_{it} + \beta_2 \text{urbanizacja}_{it} + \beta_3 \text{cena}_{it} + \beta_4 \text{hdd}_{it} + \beta_5 \text{cdd}_{it} + \varepsilon_{it}$$
 
 ```{r ols_wyniki}
 sum_ols <- summary(model_ols)
@@ -429,8 +429,7 @@ kable(coef_fe, caption = "Wyniki modelu panelowego FE — zużycie energii elekt
 
 Przed interpretacją wyników FE należy formalnie zweryfikować, czy efekty indywidualne są istotne statystycznie. Test F porównuje model FE (within) z modelem pooled OLS.
 
-**H₀:** efekty indywidualne są nieistotne — wystarczy pooled OLS.
-**H₁:** efekty indywidualne są istotne — model FE jest właściwszy.
+**H₀:** efekty indywidualne są nieistotne — wystarczy pooled OLS. **H₁:** efekty indywidualne są istotne — model FE jest właściwszy.
 
 ```{r pFtest}
 model_pool <- plm(zuzycie_energii_GWh ~ dochod_os + urbanizacja_pct + cena_energii_zl_kWh + hdd + cdd,
@@ -616,16 +615,16 @@ Na podstawie przeprowadzonej analizy sformułowano następujące wnioski:
 
 Wyniki sugerują, że polityka energetyczna powinna uwzględniać wymiar przestrzenny:
 
--   **Koordynacja regionalna**: efekty spillover (jeśli SAR istotny) oznaczają, że polityka energetyczna w jednym województwie wpływa na sąsiednie — uzasadnia to regionalne mechanizmy koordynacji.
--   **Wyrównywanie dysproporcji**: trwałe skupiska LL w Polsce wschodniej wymagają dedykowanych instrumentów poprawy efektywności energetycznej i dostępności infrastruktury.
--   **Wrażliwość klimatyczna**: wyższe HDD w regionach północno-wschodnich generuje wyższe zapotrzebowanie na energię — w kontekście zmian klimatu planowanie energetyczne musi uwzględniać zmiany w stopniodniach.
+- **Koordynacja regionalna**: efekty spillover (jeśli SAR istotny) oznaczają, że polityka energetyczna w jednym województwie wpływa na sąsiednie — uzasadnia to regionalne mechanizmy koordynacji.
+- **Wyrównywanie dysproporcji**: trwałe skupiska LL w Polsce wschodniej wymagają dedykowanych instrumentów poprawy efektywności energetycznej i dostępności infrastruktury.
+- **Wrażliwość klimatyczna**: wyższe HDD w regionach północno-wschodnich generuje wyższe zapotrzebowanie na energię — w kontekście zmian klimatu planowanie energetyczne musi uwzględniać zmiany w stopniodniach.
 
 ## Ograniczenia analizy
 
--   Liczba jednostek przestrzennych (N = 16) jest niska jak na analizę przestrzenną, co może ograniczać precyzję estymacji MLE.
--   Brak transformacji logarytmicznej zmiennych — wnioski o kierunku wpływu są poprawne, ale interpretacja magnitudo koeficjentów wymaga ostrożności.
--   Test Morana dla reszt obliczany jako uśrednienie po latach (przybliżenie dla danych panelowych).
--   Model nie uwzględnia potencjalnej endogeniczności ceny energii.
+- Liczba jednostek przestrzennych (N = 16) jest niska jak na analizę przestrzenną, co może ograniczać precyzję estymacji MLE.
+- Brak transformacji logarytmicznej zmiennych — wnioski o kierunku wpływu są poprawne, ale interpretacja magnitudo koeficjentów wymaga ostrożności.
+- Test Morana dla reszt obliczany jako uśrednienie po latach (przybliżenie dla danych panelowych).
+- Model nie uwzględnia potencjalnej endogeniczności ceny energii.
 
 ------------------------------------------------------------------------
 
